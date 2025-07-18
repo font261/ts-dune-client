@@ -208,6 +208,13 @@ export interface ResultsResponse extends TimeData {
    * only present when state is COMPLETE
    */
   result?: ExecutionResult;
+  error?: ErrorResult;
+}
+
+export interface ErrorResult {
+  type: string;
+  message: string;
+  metadata?: { line: number; column: number };
 }
 
 export interface LatestResultsResponse {

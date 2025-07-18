@@ -152,6 +152,23 @@ export interface GetResultParams extends BaseParams {
   columns?: string[] | string;
 }
 
+/**
+ * Custom API parameters for creating and managing custom endpoints.
+ * Extends GetResultParams but omits 'query_parameters'.
+ *
+ * @extends {Omit<GetResultParams, "query_parameters">}
+ */
+export interface CustomAPIParams extends Omit<GetResultParams, "query_parameters"> {
+  /**
+   * The team or user handle owning the custom endpoint.
+   */
+  handle: string;
+  /**
+   * Custom endpoint slug.
+   */
+  slug: string;
+}
+
 export function validateAndBuildGetResultParams({
   limit,
   offset,
@@ -242,14 +259,21 @@ export interface CreateQueryParams extends BaseCRUDParams {
   is_private?: boolean;
 }
 
+// https://docs.dune.com/api-reference/tables/endpoint/create#body-schema-type
 export enum ColumnType {
   Varchar = "varchar",
+  Varbinary = "varbinary",
+  Uint256 = "uint256",
+  Int256 = "int256",
+  Bigint = "bigint",
   Integer = "integer",
   Double = "double",
   Boolean = "boolean",
   Timestamp = "timestamp",
+  Date = "date",
 }
 
+// https://docs.dune.com/api-reference/tables/endpoint/create#body-schema
 export interface SchemaRecord {
   /*
    * The column name. Can contain letters, numbers, and underscores,
@@ -260,6 +284,7 @@ export interface SchemaRecord {
    * The column type.
    */
   type: ColumnType;
+  nullable?: boolean;
 }
 
 export interface DeleteTableArgs {

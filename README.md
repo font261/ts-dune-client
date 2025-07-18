@@ -1,5 +1,5 @@
 [![Styled With Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://prettier.io/)
-[![Build](https://github.com/bh2smith/ts-dune-client/actions/workflows/pull-request.yaml/badge.svg)](https://github.com/bh2smith/ts-dune-client/actions/workflows/pull-request.yaml/badge.svg)
+[![Build](https://github.com/bh2smith/ts-dune-client/actions/workflows/pull-request.yaml/badge.svg)](https://github.com/duneanalytics/ts-dune-client/actions/workflows/pull-request.yaml)
 
 # Dune Client TS
 
@@ -41,6 +41,21 @@ client
 //    },
 //  ]
 ```
+
+## Custom API
+
+```ts
+const { DUNE_API_KEY } = process.env;
+
+const client = new DuneClient(DUNE_API_KEY ?? "");
+const results = await client.custom.getResults({
+  username: "your_username", 
+  slug: "endpoint-slug"
+  // optional arguments: see `GetResultParams`
+  limit: 100,
+});
+```
+
 
 Note also that the client has methods `executeQuery`, `getExecutionStatus`, `getExecutionResult` and `cancelExecution`
 

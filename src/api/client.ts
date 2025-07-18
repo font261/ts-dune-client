@@ -23,6 +23,7 @@ import { ExecutionAPI } from "./execution";
 import { POLL_FREQUENCY_SECONDS } from "../constants";
 import { QueryAPI } from "./query";
 import { TableAPI } from "./table";
+import { CustomAPI } from "./custom";
 
 /// Various states of query execution that are "terminal".
 const TERMINAL_STATES = [
@@ -43,6 +44,8 @@ export class DuneClient {
   query: QueryAPI;
   /// Table Management Interface
   table: TableAPI;
+  /// Custom Endpoint Interface
+  custom: CustomAPI;
 
   /**
    * Constructor for the DuneClient.
@@ -54,6 +57,7 @@ export class DuneClient {
     this.exec = new ExecutionAPI(apiKey);
     this.query = new QueryAPI(apiKey);
     this.table = new TableAPI(apiKey);
+    this.custom = new CustomAPI(apiKey);
   }
 
   /**
@@ -65,19 +69,13 @@ export class DuneClient {
   async runQuery(args: RunQueryArgs): Promise<ResultsResponse> {
     const { queryId, opts } = args;
     args.limit = opts?.batchSize || args.limit;
-    const { state, execution_id } = await this._runInner(
+    const { state, execution_id } = await this.refreshResults(
       queryId,
       args,
       opts?.pingFrequency,
     );
     if (state === ExecutionState.COMPLETED) {
-      const result = await this.getLatestResult(args);
-      if (result.execution_id !== execution_id) {
-        throw new DuneError(
-          `invalid execution ID: expected ${execution_id}, got ${result.execution_id}`,
-        );
-      }
-      return result;
+      return this.exec.getExecutionResults(execution_id, args);
     } else {
       const message = `refresh (execution ${execution_id}) yields incomplete terminal state ${state}`;
       // TODO - log the error in constructor
@@ -95,7 +93,7 @@ export class DuneClient {
   async runQueryCSV(args: RunQueryArgs): Promise<ExecutionResponseCSV> {
     const { queryId, opts } = args;
     args.limit = opts?.batchSize || args.limit;
-    const { state, execution_id } = await this._runInner(
+    const { state, execution_id } = await this.refreshResults(
       queryId,
       args,
       opts?.pingFrequency,
@@ -185,33 +183,41 @@ export class DuneClient {
       results = await this.runQuery({ queryId, ...args });
     } finally {
       if (archiveAfter) {
-        this.query.archiveQuery(queryId);
+        await this.query.archiveQuery(queryId);
       }
     }
 
     return results;
   }
 
-  private async _runInner(
-    queryID: number,
+  /**
+   * Executes query with provided parameters, checking every `pingFrequency`
+   * seconds until execution status reaches a terminal state.
+   * @param queryId
+   * @param params
+   * @param pingFrequency
+   * @returns
+   */
+  async refreshResults(
+    queryId: number,
     params?: ExecutionParams,
     pingFrequency: number = POLL_FREQUENCY_SECONDS,
   ): Promise<GetStatusResponse> {
     log.info(
       logPrefix,
-      `refreshing query https://dune.com/queries/${queryID} with parameters ${JSON.stringify(
+      `refreshing query https://dune.com/queries/${queryId} with parameters ${JSON.stringify(
         params,
       )}`,
     );
-    const { execution_id: jobID } = await this.exec.executeQuery(queryID, params);
-    let status = await this.exec.getExecutionStatus(jobID);
+    const { execution_id } = await this.exec.executeQuery(queryId, params);
+    let status = await this.exec.getExecutionStatus(execution_id);
     while (!TERMINAL_STATES.includes(status.state)) {
       log.info(
         logPrefix,
-        `waiting for query execution ${jobID} to complete: current state ${status.state}`,
+        `waiting for query execution ${execution_id} to complete: current state ${status.state}`,
       );
       await sleep(pingFrequency);
-      status = await this.exec.getExecutionStatus(jobID);
+      status = await this.exec.getExecutionStatus(execution_id);
     }
     return status;
   }
